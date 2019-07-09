@@ -35,3 +35,26 @@ node ('windows') {
         }
     }
 }
+
+
+stash includes: '**', name: 'work'
+node('Windows-BuildNode1') {
+   timestamps{
+unstash 'work'
+                  stage ('SonarQube Analysis Start') {
+                      withSonarQubeEnv('pipeline-sonar') {
+                          bat "\"${tool 'scanner'}\" begin /k:FlexAnswerBL"
+                      }
+                  }
+                  stage ('Build') {
+                      bat "\"${tool 'MSBuild'}\" FlexAnswerBL.sln /t:Build /p:Configuration=Release /p:Platform=\"Any CPU\""
+                  }
+                  stage ('SonarQube Analysis Finish') {
+                      withSonarQubeEnv('pipeline-sonar') {
+                          bat "\"${tool 'scanner'}\" end"
+                      }
+                  }       
+                  stage ('Publish NuGet Package') {
+                      bat "C:\Utilities\nuget.exe pack flex-answer-bl.nuspec -properties Configuration=Release"
+                      bat "C:\Utilities\nuget.exe push flex-answer-bl.1.0.0.nupkg -Source https://nexus.sabio.co.uk/repository/nuget_releases/"
+                      
